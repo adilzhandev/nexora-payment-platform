@@ -1,0 +1,57 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit and infrastructure integration tests
+        run: ./gradlew --no-daemon --max-workers=2 test integrationTest :nexora-api:bootJar :nexora-audit:bootJar
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/'
+      - name: Upload application packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: applications
+          path: '**/build/libs/nexora-*.jar'
+      - name: Validate Compose and build images
+        run: |
+          export DATABASE_PASSWORD="$(openssl rand -hex 24)"
+          export AUDIT_DATABASE_PASSWORD="$(openssl rand -hex 24)"
+          export AUDIT_USERNAME=ci-auditor
+          export AUDIT_PASSWORD="$(openssl rand -hex 24)"
+          docker compose config --quiet
+          docker compose build
+          docker compose up -d --wait
+          python3 scripts/smoke.py
+      - name: Stop Compose services
+        if: always()
+        env:
+          DATABASE_PASSWORD: cleanup
+          AUDIT_DATABASE_PASSWORD: cleanup
+          AUDIT_USERNAME: cleanup
+          AUDIT_PASSWORD: cleanup
+        run: docker compose down --volumes
