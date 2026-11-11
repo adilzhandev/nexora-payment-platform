@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - include:
+      file: db/identity.sql
+  - include:
+      file: db/core.sql
+  - include:
+      file: db/outbox.sql
+  - include:
+      file: db/tenancy.sql
