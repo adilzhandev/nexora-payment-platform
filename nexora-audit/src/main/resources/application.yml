@@ -1,0 +1,60 @@
+server:
+  port: ${AUDIT_PORT:8081}
+  shutdown: graceful
+spring:
+  application:
+    name: nexora-audit
+  datasource:
+    url: ${AUDIT_DATABASE_URL:jdbc:postgresql://localhost:5432/nexora_audit}
+    username: ${AUDIT_DATABASE_USERNAME:nexora_audit}
+    password: ${AUDIT_DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 5000
+  liquibase:
+    change-log: classpath:db/changelog-audit.yaml
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: nexora-audit-v1
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        isolation.level: read_committed
+        max.poll.records: 50
+    listener:
+      ack-mode: record
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.block.ms: 5000
+        delivery.timeout.ms: 10000
+        request.timeout.ms: 5000
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+logging:
+  structured:
+    format:
+      console: logstash
+nexora:
+  events:
+    topic: ${PAYMENT_EVENTS_TOPIC:nexora.payments.v1}
+  audit:
+    username: ${AUDIT_USERNAME}
+    password: ${AUDIT_PASSWORD}
