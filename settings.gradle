@@ -1,0 +1,3 @@
+rootProject.name = 'nexora-payment-platform'
+
+include 'nexora-common', 'nexora-core', 'nexora-events', 'nexora-api', 'nexora-audit'
